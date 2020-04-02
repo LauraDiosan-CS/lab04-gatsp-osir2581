@@ -9,6 +9,9 @@ public class ComisVoiajor {
     private String fisier;
     private int nrOrase;
     private ArrayList<ArrayList<Integer>> matrice;
+    private ArrayList<ArrayList<Double>> matriceFeromoni;
+    private ArrayList<ArrayList<Double>> copieMatriceFeromoni;
+    private ArrayList<ArrayList<Integer>> copieMatrice;
     public ComisVoiajor(String file){
         fisier=file;
         loadFromFile();
@@ -19,14 +22,26 @@ public class ComisVoiajor {
             Scanner sc = new Scanner(f);
             nrOrase=Integer.parseInt(sc.nextLine());
             matrice = new ArrayList<>(nrOrase);
+            matriceFeromoni = new ArrayList<>(nrOrase);
+            copieMatriceFeromoni = new ArrayList<>(nrOrase);
+            copieMatrice = new ArrayList<>(nrOrase);
             for(int i=0;i<nrOrase;i++) {
                 String linie = sc.nextLine();
                 String[] params = linie.split(",");
                 ArrayList<Integer> line = new ArrayList<>();
+                ArrayList<Double> linie2 = new ArrayList<>();
+                ArrayList<Double> linie3 = new ArrayList<>();
+                ArrayList<Integer> linie4 = new ArrayList<>();
                 for(String p : params){
                     line.add(Integer.parseInt(p));
+                    linie2.add((double)0);
+                    linie3.add((double)0);
+                    linie4.add(0);
                 }
                 matrice.add(line);
+                matriceFeromoni.add(linie2);
+                copieMatriceFeromoni.add(linie3);
+                copieMatrice.add(linie4);
             }
             sc.close();
         } catch (FileNotFoundException e) {
@@ -34,17 +49,17 @@ public class ComisVoiajor {
         }
     }
 
-    public ArrayList<Integer> ceaMaiBunaSolutie(ArrayList<ArrayList<Integer>> generatie){
-        int cost = cost(generatie.get(0));
+    public ArrayList<Integer> ceaMaiBunaSolutie(ArrayList<ArrayList<Integer>> furnicute){
+        int cost = cost(furnicute.get(0));
         ArrayList<Integer> ceaMaiBuna = new ArrayList<>(nrOrase);
         for(int i=0;i<nrOrase;i++)
-            ceaMaiBuna.add(generatie.get(0).get(i));
-        for(int i=0;i<generatie.size();i++) {
-            int costAux = cost(generatie.get(i));
+            ceaMaiBuna.add(furnicute.get(0).get(i));
+        for(int i=0;i<furnicute.size();i++) {
+            int costAux = cost(furnicute.get(i));
             if (cost > costAux) {
                 cost = costAux;
                 for(int j=0;j<nrOrase;j++){
-                    ceaMaiBuna.set(j,generatie.get(i).get(j));
+                    ceaMaiBuna.set(j,furnicute.get(i).get(j));
                 }
             }
         }
@@ -60,88 +75,104 @@ public class ComisVoiajor {
         return c;
     }
 
-    public ArrayList<Integer> crossOver(ArrayList<Integer> tata, ArrayList<Integer> mama){
-        ArrayList<Integer> copil = new ArrayList<>(tata.size());
+    public int nextOras(ArrayList<Integer> oraseParcurse, int start){
+        double raport = -1;
+        int oras=0;
         Random r = new Random();
-        int pozitie1 = r.nextInt(tata.size()-1);
-        int pozitie2 = r.nextInt(tata.size());
-        int aux;
-        if(pozitie1 > pozitie2){
-            aux = pozitie1;
-            pozitie1 = pozitie2;
-            pozitie2 = aux;
-        }
-        for(int i=pozitie1 ; i<=pozitie2;i++)
-            copil.add(tata.get(i));
-        int indexCurent = 0;
-        int orasCurentMama = 0;
-        for(int i =0 ;i < tata.size();i++){
-            indexCurent = (pozitie2+i)%tata.size();
-            orasCurentMama = mama.get(indexCurent);
-            if(!copil.contains(orasCurentMama))
-                copil.add(orasCurentMama);
-        }
-        Collections.rotate(copil,pozitie1);
-        return copil;
-    }
-
-    public ArrayList<Integer> muteazaCopil(ArrayList<Integer> copil){
-        Random r = new Random();
-        int pozitie1 = r.nextInt(copil.size());
-        int pozitie2 = r.nextInt(copil.size());
-        int aux = copil.get(pozitie1);
-        copil.set(pozitie1, copil.get(pozitie2));
-        copil.set(pozitie2, aux);
-        return copil;
-    }
-
-    public ArrayList<Integer> selecteaza(ArrayList<ArrayList<Integer>> generatie){
-        Random r = new Random();
-        int numarParticipantiTurneu = r.nextInt(generatie.size());
-        ArrayList<Integer> alfa = generatie.get(r.nextInt(generatie.size()));
-        int costAlfa = cost(alfa);
-        for(int i=1;i<numarParticipantiTurneu;i++){
-            ArrayList<Integer> beta = generatie.get(r.nextInt(generatie.size()));
-            int costBeta = cost(beta);
-            if(costAlfa > costBeta){
-                alfa = beta;
-                costAlfa = costBeta;
+        float p = r.nextFloat();
+        int orasSecundar = r.nextInt(nrOrase);
+            for( int j =0 ;j< matriceFeromoni.size();j++){
+                int k=0;
+                for (Integer integer : oraseParcurse) {
+                    if (integer == j) {
+                        k = 1;
+                        break;
+                    }
+                }
+                if(k==0)
+                    if (matrice.get(start).get(j)!=0) {
+                        double raportNou = (double) matriceFeromoni.get(start).get(j) / matrice.get(start).get(j);
+                        if (raportNou > raport) {
+                            raport = raportNou;
+                            oras = j;
+                        }
+                    }
             }
+        if(p>0.9) {
+            int k=0;
+            for (Integer integer : oraseParcurse) {
+                if (integer == orasSecundar) {
+                    k = 1;
+                    break;
+                }
+            }
+            if (orasSecundar == start || k==1) {
+                return oras;
+            }
+            else
+                return orasSecundar;
         }
-        return alfa;
+        else return oras;
     }
 
-    public void solutii(int nrIteratii, int marimePopulatie) {
+    public void updateazaFeromon(int sursa, int destinatie){
+        //copieMatriceFeromoni.get(sursa).set(destinatie,0.9*matriceFeromoni.get(sursa).get(destinatie)+1);
+        matriceFeromoni.get(sursa).set(destinatie,0.9*matriceFeromoni.get(sursa).get(destinatie)+1);
+    }
+
+    public void solutii(int nrIteratii) {
+        Random r = new Random();
         int index = 0;
-        ArrayList<ArrayList<Integer>> generatie = new ArrayList<>(50);
-        ArrayList<Integer> ceaMaiBunaSolutie = new ArrayList<>(nrOrase);
-        ArrayList<Integer> permutare = new ArrayList<>(nrOrase);
-        for (int i = 0; i < nrOrase; i++)
-            permutare.add(i);
-        for (int i = 0; i < marimePopulatie; i++) {
-            ArrayList<Integer> specimen = new ArrayList<>(nrOrase);
-            Collections.shuffle(permutare);
-            for (int j = 0; j < nrOrase; j++)
-                specimen.add(permutare.get(j));
-            generatie.add(specimen);
-            ceaMaiBunaSolutie = ceaMaiBunaSolutie(generatie);
-        }
-        while (index < nrIteratii) {
-            ArrayList<ArrayList<Integer>> generatieNoua = new ArrayList<>();
-            generatieNoua.add(ceaMaiBunaSolutie);
-            while(generatieNoua.size()<marimePopulatie) {
-                ArrayList<Integer> tata;
-                ArrayList<Integer> mama;
-                ArrayList<Integer> copil;
-                tata = selecteaza(generatie);
-                mama = selecteaza(generatie);
-                copil= (muteazaCopil(crossOver(tata,mama)));
-                generatieNoua.add(copil);
+        int muchie1;
+        int muchie2;
+        muchie1 = r.nextInt(nrOrase - 1);
+        muchie2 = r.nextInt(nrOrase - 1);
+        int nrFurnicute = r.nextInt(nrOrase)+1;
+        ArrayList<Integer> ceaMaiBunaSolutie;
+        while(index<nrIteratii) {
+            ArrayList<ArrayList<Integer>> furnicute = new ArrayList<>(nrFurnicute);
+            int d = 0;
+            for (int i = 0; i < nrFurnicute; i++) {
+                ArrayList<Integer> solutieFiecareFurnicuta = new ArrayList<>(nrOrase);
+                for (int j = 0; j < nrOrase; j++)
+                    solutieFiecareFurnicuta.add(-1);
+                solutieFiecareFurnicuta.set(0, r.nextInt(nrOrase));
+                furnicute.add(solutieFiecareFurnicuta);
             }
-            generatie=generatieNoua;
+            for (int i = 0; i < nrFurnicute; i++) {
+                for (int j = 0; j < nrOrase - 1; j++) {
+                    int oras = nextOras(furnicute.get(i), furnicute.get(i).get(d));
+                    updateazaFeromon(furnicute.get(i).get(d), oras);
+                    d++;
+                    furnicute.get(i).set(d,oras);
+                }
+                d = 0;
+            }
+
+            ceaMaiBunaSolutie = ceaMaiBunaSolutie(furnicute);
+            int cost = cost(ceaMaiBunaSolutie);
+            for (int i = 0; i < nrOrase - 1; i++) {
+                updateazaFeromon(ceaMaiBunaSolutie.get(0), ceaMaiBunaSolutie.get(i));
+            }
+            //matriceFeromoni=copieMatriceFeromoni;
+            System.out.println(cost + " " + ceaMaiBunaSolutie);
             index++;
-            ceaMaiBunaSolutie = ceaMaiBunaSolutie(generatie);
-            System.out.println(ceaMaiBunaSolutie + " " + cost(ceaMaiBunaSolutie));
+           if(index%5==0) {
+                muchie1 = r.nextInt(nrOrase - 1);
+                muchie2 = r.nextInt(nrOrase - 1);
+                if(muchie1 == muchie2)
+                    muchie2 = muchie2+1;
+                copieMatrice.get(muchie1).set(muchie2,matrice.get(muchie1).get(muchie2));
+                copieMatrice.get(muchie2).set(muchie1,matrice.get(muchie1).get(muchie2));
+                matrice.get(muchie1).set(muchie2,0);
+                matrice.get(muchie2).set(muchie1,0);
+                matriceFeromoni.get(muchie1).set(muchie2,(double)0);
+                matriceFeromoni.get(muchie2).set(muchie1,(double)0);
+            }
+            if(index%6==0){
+                matrice.get(muchie1).set(muchie2,copieMatrice.get(muchie1).get(muchie2));
+                matrice.get(muchie2).set(muchie1,copieMatrice.get(muchie1).get(muchie2));
+            }
         }
     }
 
